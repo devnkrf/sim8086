@@ -5,6 +5,9 @@ Part of the homework from [Casey Muratori's](https://en.wikipedia.org/wiki/Casey
 ### Assignment Material
 Homework material is present in this [repo](github.com/cmuratori/computer_enhance).
 
+### Intel 8086 Manual
+[Link to pdf](https://edge.edx.org/c4x/BITSPilani/EEE231/asset/8086_family_Users_Manual_1_.pdf)
+
 ### H1 - Decoding 8086 instructions (mov)
 We start with decoding 8086 instructions. 
 First homework assignment is to decode mov instructions from listing 37 and listing 38.
