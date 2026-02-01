@@ -11,5 +11,5 @@ Homework material is present in this [repo](github.com/cmuratori/computer_enhanc
 ### H1 - Decoding 8086 instructions (mov)
 We start with decoding 8086 instructions. 
 First homework assignment is to decode mov instructions from listing 37 and listing 38.
-## H2 - More mov instructions
+### H2 - More mov instructions
 More complicated mov instructions.
