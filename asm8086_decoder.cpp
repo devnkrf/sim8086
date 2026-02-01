@@ -26,6 +26,17 @@ constexpr const char* reg_string[8][2] = {
   { "bh", "di" },
 };
 
+constexpr const char* effective_addr_string[8] = {
+  "bx + si",
+  "bx + di",
+  "bp + si",
+  "bp + di",
+  "si",
+  "di",
+  "bp",
+  "bx"
+};
+
 void printMovString(const std::string& destination, const std::string& source) {
   std::cout << "mov ";
   std::cout <<  destination << ", ";
@@ -36,23 +47,56 @@ void processMovRegMem(const std::vector<uint8_t>& buffer, size_t& index) {
   uint8_t low_byte = buffer[index++];
   uint8_t high_byte = buffer[index++];
 
-  //uint8_t mod = high_byte >> 6;
+  uint8_t mod = high_byte >> 6;
   uint8_t reg = (high_byte >> 3) & 0x7;
   uint8_t r_m = high_byte & 0x7;
   bool flag_w = low_byte & 1;
   bool flag_d = low_byte & 2;
 
-  std::string source;
-  std::string destination;
-  if (flag_d) {
-    source      = reg_string[r_m][flag_w];
-    destination = reg_string[reg][flag_w];
+  uint8_t data_1 = 0;
+  uint8_t data_2 = 0;
+  uint16_t data = 0;
+  if (mod == 2 || mod == 1 || (mod == 0 && r_m == 6)) {
+    data_1 = buffer[index++];
+  }
+  if (mod == 2 || (mod == 0 && r_m == 6 && flag_w == true)) {
+    data_2 = buffer[index++];
+  }
+  if (data_2) {
+    data = static_cast<uint16_t>(data_2 << 8) | data_1;
   } else {
-    source      = reg_string[reg][flag_w];
-    destination = reg_string[r_m][flag_w];
+    data = static_cast<uint16_t>(data_1);
   }
 
-  printMovString(destination, source);
+  std::string source;
+  std::string destination;
+  if (mod == 3)
+  {
+    source      = reg_string[r_m][flag_w];
+    destination = reg_string[reg][flag_w];
+  }
+  else if (mod == 2 || mod == 1)
+  {
+    std::string suffix = data ? std::string(" + ") + std::to_string(data) : "";
+    source = std::string("[") + effective_addr_string[r_m] + suffix + "]";
+    destination = reg_string[reg][flag_w];
+  }
+  else if (mod == 0 && r_m == 6)
+  {
+    source = std::string("[") + std::to_string(data) + "]";
+    destination = reg_string[reg][flag_w];
+  }
+  else
+  {
+    source = std::string("[") + effective_addr_string[r_m] + "]";
+    destination = reg_string[reg][flag_w];
+  }
+
+  if (flag_d) {
+    printMovString(destination, source);
+  } else {
+    printMovString(source, destination);
+  }
 }
 
 void processMovImmediateReg(const std::vector<uint8_t>& buffer, size_t& index) {
