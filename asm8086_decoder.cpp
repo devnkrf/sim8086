@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+//#include <bitset>
 
 constexpr uint8_t opcode_mov_reg_mem = 136;
 constexpr uint8_t opcode_mov_immediate_to_reg_mem = 198;
@@ -25,15 +26,21 @@ constexpr const char* reg_string[8][2] = {
   { "bh", "di" },
 };
 
+void printMovString(const std::string& destination, const std::string& source) {
+  std::cout << "mov ";
+  std::cout <<  destination << ", ";
+  std::cout <<  source << std::endl;
+}
+
 void processMovRegMem(const std::vector<uint8_t>& buffer, size_t& index) {
   uint8_t low_byte = buffer[index++];
   uint8_t high_byte = buffer[index++];
 
-  uint8_t mod = high_byte >> 6;
+  //uint8_t mod = high_byte >> 6;
   uint8_t reg = (high_byte >> 3) & 0x7;
   uint8_t r_m = high_byte & 0x7;
-  uint8_t flag_w = low_byte & 1;
-  uint8_t flag_d = low_byte & 2;
+  bool flag_w = low_byte & 1;
+  bool flag_d = low_byte & 2;
 
   std::string source;
   std::string destination;
@@ -45,14 +52,33 @@ void processMovRegMem(const std::vector<uint8_t>& buffer, size_t& index) {
     destination = reg_string[r_m][flag_w];
   }
 
-  std::cout << "mov ";
-  std::cout <<  destination << ", ";
-  std::cout <<  source << " ";
-  std::cout << std::endl;
+  printMovString(destination, source);
 }
 
 void processMovImmediateReg(const std::vector<uint8_t>& buffer, size_t& index) {
+  uint8_t low_byte = buffer[index++];
 
+  uint8_t reg    = low_byte & 7;
+  bool flag_w = low_byte & 8;
+
+  uint8_t data_1 = buffer[index++];
+  uint8_t data_2 = 0;
+  if(flag_w) data_2 = buffer[index++];
+
+  std::string destination = reg_string[reg][flag_w];
+  std::string source;
+  if(flag_w) {
+    uint16_t result = static_cast<uint16_t>(data_2 << 8) | data_1;
+    source = std::to_string(result);
+  } else {
+    source = std::to_string(data_1);
+  }
+
+  printMovString(destination, source);
+}
+
+constexpr bool hasOpcode(uint8_t value, uint8_t opcode) {
+  return (value & opcode) == opcode;
 }
 
 int processMoveOperation(const std::vector<uint8_t>& buffer) {
@@ -60,23 +86,22 @@ int processMoveOperation(const std::vector<uint8_t>& buffer) {
   size_t index = 0;
   while (index < size) {
     uint8_t low_byte = buffer[index];
-    if (low_byte & opcode_mov_reg_mem) 
+    if ( hasOpcode(low_byte, opcode_mov_immediate_to_reg) )
+    {
+      processMovImmediateReg(buffer, index);
+    }
+    else if ( hasOpcode(low_byte, opcode_mov_reg_mem) )
     {
       processMovRegMem(buffer, index);
-    } 
-    else if (low_byte & opcode_mov_immediate_to_reg_mem) 
+    }
+    else if (low_byte & opcode_mov_immediate_to_reg_mem)
     {
       std::cerr << "Not implemented" << std::endl;
       return 1;
-    } 
-    else if (low_byte & opcode_mov_immediate_to_reg) 
+    }
+    else
     {
-      std::cerr << "Not implemented" << std::endl;
-      return 1;
-    } 
-    else 
-    {
-      std::cerr << "Operation is not move operation" << std::endl;
+      std::cerr << "Operation [" << std::to_string(low_byte) << "] is not move operation" << std::endl;
       return 1;
     }
   }
@@ -102,6 +127,13 @@ int main(int argc, char* argv[]) {
   std::vector<uint8_t> buffer(fileSize);
 
   file.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+
+  /*
+  for (uint8_t b : buffer) {
+    std::cout << std::bitset<8>(b) << " ";
+  }
+  std::cout << std::endl << std::endl;
+  */
 
   //std::cout << "; " << argv[1] << std::endl << std::endl;
   std::cout << "bits 16" << std::endl << std::endl;
