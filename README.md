@@ -13,3 +13,8 @@ We start with decoding 8086 instructions.
 First homework assignment is to decode mov instructions from listing 37 and listing 38.
 ### H2 - More mov instructions
 More complicated mov instructions.
+### H3 - Arithmetic instruction
+Instructions similar to Mov, find common patterns
+### H4 - Simulating Mov
+Extend the debugger into simulator.
+My decoder was not good enough for this task. Using Casey's library for now, will extend by debugger later.
