@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdint>
+#include <unordered_map>
 #include "sim86_shared.h"
 
 constexpr uint16_t TotalRegisters = 4*3 + 2; // General Purpose (AX, BX, CX, DX), Segment (CS, DS, SS, ES), Pointer & Index (SP, BP, SI, DI), and Flag/Instruction Pointer registers
@@ -9,6 +10,7 @@ uint16_t registers[TotalRegisters + 1]{}; // Casey's register index starts with 
 constexpr uint16_t ZF_Bit = 6;
 constexpr uint16_t SF_Bit = 7;
 constexpr uint16_t Flag_Reg = TotalRegisters; // last register in 1 based indexing
+constexpr uint16_t IP_Reg   = TotalRegisters - 1;
 
 const char* register_string[TotalRegisters + 1] = {
   "",
@@ -116,6 +118,14 @@ void ResetFlag(uint16_t Flag_Bit) {
   std::cout << "Flag: " << before << " -> " << after << std::endl;
 }
 
+void UpdateInstructionPointer(const instruction& Instruction, int16_t jump) {
+  uint16_t before = registers[IP_Reg];
+  registers[IP_Reg] += Instruction.Size + jump;
+  uint16_t after = registers[IP_Reg];
+
+  std::cout << "IP: " << std::hex << before << " -> " << std::hex << after << std::endl;
+}
+
 void ProcessInstruction(const instruction& Instruction) {
   instruction_operand destination = Instruction.Operands[0];
   instruction_operand source      = Instruction.Operands[1];
@@ -151,6 +161,20 @@ void ProcessInstruction(const instruction& Instruction) {
       StoreDataInRegister(destination.Register, result);
     }
   }
+
+  int16_t jump = 0;
+  bool zero_flag = (registers[Flag_Reg] & (1 << ZF_Bit));
+  if (Instruction.Op == Op_jne && !zero_flag) {
+    jump = static_cast<int16_t>(Instruction.Operands[0].Immediate.Value);
+  }
+
+  UpdateInstructionPointer(Instruction, jump);
+}
+
+void ProcessAllInstructions(const std::unordered_map<uint32_t, instruction>& mp, uint32_t bytesRead) {
+  while (registers[IP_Reg] < bytesRead) {
+    ProcessInstruction(mp.at(registers[IP_Reg]));
+  }
 }
 
 int main(int argc, char** argv) {
@@ -181,18 +205,24 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  while (bytesRead) {
+  std::unordered_map<uint32_t, instruction> mp;
+
+  uint32_t bytesToRead = bytesRead;
+  uint32_t address = 0;
+  while (bytesToRead) {
     instruction Instruction;
-    Sim86_Decode8086Instruction(bytesRead, source, &Instruction);
+    Sim86_Decode8086Instruction(bytesToRead, source, &Instruction);
     if (Instruction.Op == Op_None) {
       std::cerr << "Unable to decode instruction" << std::endl;
       return 1;
     }
-    ProcessInstruction(Instruction);
-    bytesRead -= Instruction.Size;
+    mp[address] = Instruction;
+    bytesToRead -= Instruction.Size;
     source += Instruction.Size;
+    address += Instruction.Size;
   }
 
+  ProcessAllInstructions(mp, bytesRead);
   PrintAllRegisters();
 
   return 0;
