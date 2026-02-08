@@ -6,6 +6,10 @@
 constexpr uint16_t TotalRegisters = 4*3 + 2; // General Purpose (AX, BX, CX, DX), Segment (CS, DS, SS, ES), Pointer & Index (SP, BP, SI, DI), and Flag/Instruction Pointer registers
 uint16_t registers[TotalRegisters + 1]{}; // Casey's register index starts with 1 instead of 0;
 
+constexpr uint16_t ZF_Bit = 6;
+constexpr uint16_t SF_Bit = 7;
+constexpr uint16_t Flag_Reg = TotalRegisters; // last register in 1 based indexing
+
 const char* register_string[TotalRegisters + 1] = {
   "",
   "AX",
@@ -24,33 +28,54 @@ const char* register_string[TotalRegisters + 1] = {
   "FLAGS"
 };
 
+std::string GetFlagString() {
+  std::string result;
+  if (registers[Flag_Reg] & (1 << ZF_Bit)) {
+    result += "Z";
+  }
+  if (registers[Flag_Reg] & (1 << SF_Bit)) {
+    result += "S";
+  }
+  return result;
+}
+
 void PrintAllRegisters() {
-  for (int i=1; i < TotalRegisters + 1; i++) {
+  for (int i=1; i < TotalRegisters; i++) {
+    if (registers[i] == 0) {
+      continue;
+    }
     std::cout << register_string[i] << ": ";
     std::cout << std::hex << registers[i] << " ";
     std::cout << "(" << std::dec << registers[i] << ")";
     std::cout << std::endl;
   }
+  if (registers[Flag_Reg] != 0) {
+    std::cout << "Flags: " << GetFlagString() << std::endl;
+  }
+
 }
 
-int32_t GetDataFromRegister(const register_access& Reg) {
+uint16_t GetDataFromRegister(const register_access& Reg) {
   uint16_t reg = registers[Reg.Index];
   if (Reg.Count == 2) {
-    return static_cast<uint32_t>(reg);
+    return reg;
   }
   if (Reg.Offset == 0) {
-    return static_cast<uint32_t>(reg & 0xff);
+    return (reg & 0xff);
   }
   if (Reg.Offset == 1) {
-    return static_cast<uint32_t>(reg >> 8);
+    return (reg >> 8);
   }
   return 0;
 }
 
-void StoreDataInRegister(const register_access& Reg, int32_t cdata) {
-  uint16_t Data_16 = static_cast<uint16_t>(cdata); // Casey's lib is using 32 bit signed data
-
+void StoreDataInRegister(const register_access& Reg, uint16_t Data_16) {
   uint16_t* reg = &registers[Reg.Index];
+
+  std::cout << register_string[Reg.Index] << ": "; 
+  std::cout << std::hex << *reg << " -> ";
+  std::cout << std::hex << Data_16 << std::endl;
+
   if (Reg.Count == 2) {
     *reg = Data_16;
     return;
@@ -67,28 +92,65 @@ void StoreDataInRegister(const register_access& Reg, int32_t cdata) {
   return;
 }
 
+void SetFlag(uint16_t Flag_Bit) {
+  if (registers[Flag_Reg] & (1 << Flag_Bit)) {
+    return;
+  }
+
+  std::string before = GetFlagString();
+  registers[Flag_Reg] |= (1 << Flag_Bit);
+  std::string after = GetFlagString();
+
+  std::cout << "Flag: " << before << " -> " << after << std::endl;
+}
+
+void ResetFlag(uint16_t Flag_Bit) {
+  if (!(registers[Flag_Reg] & (1 << Flag_Bit))) {
+    return;
+  }
+
+  std::string before = GetFlagString();
+  registers[Flag_Reg] &= ~(1 << Flag_Bit);
+  std::string after = GetFlagString();
+
+  std::cout << "Flag: " << before << " -> " << after << std::endl;
+}
+
 void ProcessInstruction(const instruction& Instruction) {
   instruction_operand destination = Instruction.Operands[0];
   instruction_operand source      = Instruction.Operands[1];
 
-  // First homework is for non-memory moves
-  if (Instruction.Op != Op_mov) {
-    std::cerr << "Not mov instruction" << std::endl;
-    return;
-  }
-  // Take out data from destination, place it in source
-  int32_t data = 0;
+  uint16_t data_src = 0;
   if (source.Type == Operand_Immediate) {
-    data = source.Immediate.Value;
+    data_src = static_cast<uint16_t>(source.Immediate.Value);  // Casey's lib uses s32
   } else if (source.Type == Operand_Register) {
-    data = GetDataFromRegister(source.Register);
+    data_src = GetDataFromRegister(source.Register);
   }
-  // destination can only be register at this point
-  if (destination.Type != Operand_Register) {
-    std::cerr << "Unexpected destination" << std::endl;
-    return;
+
+  if (Instruction.Op == Op_mov) {
+    StoreDataInRegister(destination.Register, data_src);
   }
-  StoreDataInRegister(destination.Register, data);
+  if (Instruction.Op == Op_add) {
+    uint16_t data_dest = GetDataFromRegister(destination.Register);
+    StoreDataInRegister(destination.Register, data_dest + data_src);
+  }
+  if (Instruction.Op == Op_sub || Instruction.Op == Op_cmp) {
+    uint16_t data_dest = GetDataFromRegister(destination.Register);
+    uint16_t result = data_dest - data_src;
+    if (result == 0) {
+      SetFlag(ZF_Bit);
+    } else {
+      ResetFlag(ZF_Bit);
+    }
+    if (static_cast<int16_t>(result) < 0) {
+      SetFlag(SF_Bit);
+    } else {
+      ResetFlag(SF_Bit);
+    }
+    if (Instruction.Op == Op_sub) {
+      StoreDataInRegister(destination.Register, result);
+    }
+  }
 }
 
 int main(int argc, char** argv) {
@@ -119,7 +181,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int count = 0;
   while (bytesRead) {
     instruction Instruction;
     Sim86_Decode8086Instruction(bytesRead, source, &Instruction);
@@ -127,16 +188,11 @@ int main(int argc, char** argv) {
       std::cerr << "Unable to decode instruction" << std::endl;
       return 1;
     }
-    if (Instruction.Op == Op_mov) {
-      std::cout << "Mov instruction" << std::endl;
-    }
     ProcessInstruction(Instruction);
-    count++;
     bytesRead -= Instruction.Size;
     source += Instruction.Size;
   }
 
-  std::cout << "decoding complete, instruction count: " << count << std::endl;
   PrintAllRegisters();
 
   return 0;

@@ -18,3 +18,5 @@ Instructions similar to Mov, find common patterns
 ### H4 - Simulating Mov
 Extend the debugger into simulator.
 My decoder was not good enough for this task. Using Casey's library for now, will extend by debugger later.
+### H5 - Add, Sub, Cmp
+Adding simulation for add, sub and cmp instructions. This is very similar to mov, we just need to take care of flags also.

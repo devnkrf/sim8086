@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS = -Wall -O2
 TARGET = bin/sim86
 SRC = sim86.cpp
-LIB = ./lib_sim86.so
+LIB = -L. -lsim86
 
 all: $(TARGET)
 
