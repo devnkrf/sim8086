@@ -4,6 +4,9 @@
 #include <unordered_map>
 #include "sim86_shared.h"
 
+constexpr uint32_t MainMemSize = (1 << 20);
+uint8_t *memory = new uint8_t[MainMemSize];
+
 constexpr uint16_t TotalRegisters = 4*3 + 2; // General Purpose (AX, BX, CX, DX), Segment (CS, DS, SS, ES), Pointer & Index (SP, BP, SI, DI), and Flag/Instruction Pointer registers
 uint16_t registers[TotalRegisters + 1]{}; // Casey's register index starts with 1 instead of 0;
 
@@ -42,6 +45,8 @@ std::string GetFlagString() {
 }
 
 void PrintAllRegisters() {
+  std::cout << std::endl;
+  std::cout << "Final Registers:" << std::endl;
   for (int i=1; i < TotalRegisters; i++) {
     if (registers[i] == 0) {
       continue;
@@ -94,6 +99,32 @@ void StoreDataInRegister(const register_access& Reg, uint16_t Data_16) {
   return;
 }
 
+uint16_t GetDataFromMemory(const effective_address_expression& Address) {
+  // handling only simple case for homework
+  // not handling byte for now, only word
+  uint16_t addr = 0;
+  addr += registers[Address.Terms[0].Register.Index];
+  addr += registers[Address.Terms[1].Register.Index];
+  addr += static_cast<uint16_t>(Address.Displacement);
+
+  uint16_t result = 0;
+  result = static_cast<uint16_t>(memory[addr]);
+  result = static_cast<uint16_t>(memory[addr+1] << 8) | result;
+
+  return result;
+}
+
+void StoreDataInMemory(const effective_address_expression& Address, uint16_t Data_16) {
+// simple case only
+  uint16_t addr = 0;
+  addr += registers[Address.Terms[0].Register.Index];
+  addr += registers[Address.Terms[1].Register.Index];
+  addr += static_cast<uint16_t>(Address.Displacement);
+
+  memory[addr] = static_cast<uint8_t>(Data_16 & 0x00ff);
+  memory[addr + 1] = static_cast<uint8_t>(Data_16 >> 8);
+}
+
 void SetFlag(uint16_t Flag_Bit) {
   if (registers[Flag_Reg] & (1 << Flag_Bit)) {
     return;
@@ -135,10 +166,16 @@ void ProcessInstruction(const instruction& Instruction) {
     data_src = static_cast<uint16_t>(source.Immediate.Value);  // Casey's lib uses s32
   } else if (source.Type == Operand_Register) {
     data_src = GetDataFromRegister(source.Register);
+  } else if (source.Type == Operand_Memory) {
+    data_src = GetDataFromMemory(source.Address);
   }
 
   if (Instruction.Op == Op_mov) {
-    StoreDataInRegister(destination.Register, data_src);
+    if (destination.Type == Operand_Register) {
+      StoreDataInRegister(destination.Register, data_src);
+    } else if (destination.Type == Operand_Memory) {
+      StoreDataInMemory(destination.Address, data_src);
+    }
   }
   if (Instruction.Op == Op_add) {
     uint16_t data_dest = GetDataFromRegister(destination.Register);
@@ -195,10 +232,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  uint32_t MainMemSize = (1 << 20);
-  uint8_t *source = new uint8_t[MainMemSize];
-
-  file.read(reinterpret_cast<char*>(source), MainMemSize);
+  file.read(reinterpret_cast<char*>(memory), MainMemSize);
   uint32_t bytesRead = file.gcount();
   if (bytesRead == 0) {
     std::cerr << "Could not read file" << std::endl;
@@ -208,6 +242,7 @@ int main(int argc, char** argv) {
   std::unordered_map<uint32_t, instruction> mp;
 
   uint32_t bytesToRead = bytesRead;
+  uint8_t* source = memory;
   uint32_t address = 0;
   while (bytesToRead) {
     instruction Instruction;
