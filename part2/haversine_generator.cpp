@@ -1,20 +1,49 @@
-#include <iostream>
+#include <cstdio>
+
+#include "haversine_reference_calculator.cpp"
 
 // Range -90 to 90
-long double GetRandomLatitude() {
-  long double scale = (long double)rand() / (long double)RAND_MAX;
-  long double num = -90.0L + scale * 180.0L;
+double GetRandomLatitude() {
+  double scale = (double)rand() / (double)RAND_MAX;
+  double num = -90.0L + scale * 180.0L;
   return num;
 }
 
 // Range -180 to 180
-long double GetRandomLongitude() {
-  long double scale = (long double)rand() / (long double)RAND_MAX;
-  long double num = -180.0L + scale * 360.0L;
+double GetRandomLongitude() {
+  double scale = (double)rand() / (double)RAND_MAX;
+  double num = -180.0L + scale * 360.0L;
   return num;
 }
 
-int main (int argc, char** argv) {
+double create_haversine_json(unsigned int seed, int n) {
+  double result = 0;
+
+  FILE *fptr;
+  fptr = fopen("output.json", "w");
+
+  srand(seed);
+
+  fprintf(fptr, "{\"pairs\":[\n");
+  for (int i = 0; i < n; i++) {
+    double x0 = GetRandomLatitude();
+    double x1 = GetRandomLatitude();
+    double y0 = GetRandomLongitude();
+    double y1 = GetRandomLongitude();
+    result += ReferenceHaversine(x0, y0, x1, y1, 6372.8);
+    fprintf(fptr, "{\"x0\":%.16f, \"y0\":%.16f, \"x1\":%.16f, \"y1\":%.16f}",
+            x0, y0, x1, y1);
+    if (i < n - 1)
+      fprintf(fptr, ",");
+    fprintf(fptr, "\n");
+  }
+  fprintf(fptr, "]}\n");
+  fclose(fptr);
+
+  return result / n;
+}
+
+int main(int argc, char **argv) {
 
   if (argc != 3) {
     printf("Usage: %s <seed> <number_of_points>\n", argv[0]);
@@ -24,19 +53,9 @@ int main (int argc, char** argv) {
   unsigned int seed = (unsigned int)atoi(argv[1]);
   int n = atoi(argv[2]);
 
-  srand(seed);
-
-  printf("{\"pairs\":[\n");
-  for (int i = 0; i < n; i++) {
-    long double x0 = GetRandomLatitude();
-    long double x1 = GetRandomLatitude();
-    long double y0 = GetRandomLongitude();
-    long double y1 = GetRandomLongitude();
-    printf("{\"x0\":%.16Lf, \"y0\":%.16Lf, \"x1\":%.16Lf, \"y1\":%.16Lf}", x0, y0, x1, y1);
-    if(i < n-1) printf(",");
-    printf("\n");
-  }
-  printf("]}\n");
+  printf("Random Seed: %d\n", seed);
+  printf("Pair Count: %u\n", n);
+  printf("Expected Sum: %f\n", create_haversine_json(seed, n));
 
   return 0;
 }

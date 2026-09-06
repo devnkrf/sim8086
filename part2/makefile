@@ -1,0 +1,12 @@
+CXX = g++
+CXXFLAGS = -std=c++20 -Wall -Wextra
+SRC = haversine_generator.cpp
+TARGET = bin/haversine_generator
+
+$(TARGET): $(SRC)
+	mkdir -p bin
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC)
+
+clean:
+	rm -rf bin
+
