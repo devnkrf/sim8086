@@ -46,7 +46,7 @@ bool lexer_tokenize_bool(String *fileBuffer, String ref, int i) {
   if (i + ref.size > fileBuffer->size) {
     return false;
   }
-  if (!isStringEq({fileBuffer->value + i, trueStr.size}, ref)) {
+  if (!isStringEq({fileBuffer->value + i, ref.size}, ref)) {
     return false;
   }
   return true;
@@ -96,12 +96,12 @@ void lexer_tokenize(String *fileBuffer) {
       printf("VAL_TRUE ");
     } else if (fileBuffer->value[i] == 'f') {
       // false
-      if (!lexer_tokenize_bool(fileBuffer, trueStr, i)) {
+      if (!lexer_tokenize_bool(fileBuffer, falseStr, i)) {
         printf("\nLexer Error: Unkown f at _,_ \n");
         return;
       }
       i += 4;
-      printf("VAL_FALSE");
+      printf("VAL_FALSE ");
     } else if (fileBuffer->value[i] == 'n') {
       // null
       if (!lexer_tokenize_bool(fileBuffer, nullStr, i)) {
@@ -109,7 +109,7 @@ void lexer_tokenize(String *fileBuffer) {
         return;
       }
       i += 3;
-      printf("VAL_NULL");
+      printf("VAL_NULL ");
     }
 
     // Skip Whitespace
