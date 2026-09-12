@@ -8,5 +8,6 @@ struct String {
 
 String makeString(const char *str, long size);
 bool isStringEq(String A, String B);
+void printString(String A);
 
 #endif // MY_STRING_H

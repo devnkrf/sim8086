@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -23,3 +24,5 @@ bool isStringEq(String A, String B) {
   }
   return true;
 }
+
+void printString(String A) { printf("%.*s", (int)A.size, A.value); }

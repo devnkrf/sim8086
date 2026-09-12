@@ -1,4 +1,5 @@
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 #include <vector>
 
@@ -19,6 +20,8 @@ enum class TOKEN_TYPE {
   STRING,
   BOOLEAN,
   VAL_NULL,
+  ARRAY,
+  OBJECT,
   UNKNOWN
 };
 
@@ -62,7 +65,7 @@ void printToken(const TOKEN &token) {
     printf("STRING(%.*s)", (int)token.str.size, token.str.value);
     break;
   case TOKEN_TYPE::NUMBER:
-    printf("NUMBER(%.*s)", (int)token.str.size, token.str.value);
+    printf("NUMBER(%lf)", token.num);
     break;
   default:
     printf("UNKNOWN(%d,%d)", token.row, token.col);
@@ -79,8 +82,10 @@ bool lexer_tokenize_bool(String *fileBuffer, String ref, int i) {
   return true;
 }
 
-void lexer_tokenize(String *fileBuffer) {
-  printf("Original Json\n%.*s\n", (int)fileBuffer->size, fileBuffer->value);
+std::vector<TOKEN> lexer_tokenize(String *fileBuffer) {
+  printf("Original Json:\n");
+  printString(*fileBuffer);
+  printf("\n");
 
   std::vector<TOKEN> tokens;
   TOKEN token = {.type = TOKEN_TYPE::UNKNOWN, .col = 0, .row = 0};
@@ -115,8 +120,13 @@ void lexer_tokenize(String *fileBuffer) {
         i++;
       }
       token.type = TOKEN_TYPE::NUMBER;
-      token.str.value = fileBuffer->value + start;
-      token.str.size = i - start + 1;
+      auto [ptr, ec] = std::from_chars(fileBuffer->value + start,
+                                       fileBuffer->value + i + 1, token.num);
+      if (ec != std::errc{}) {
+        token.type = TOKEN_TYPE::UNKNOWN;
+        tokens.push_back(token);
+        break;
+      }
       tokens.push_back(token);
     } else if (fileBuffer->value[i] == '"') {
       int start = i;
@@ -181,10 +191,5 @@ void lexer_tokenize(String *fileBuffer) {
     }
     token.row++;
   }
-  printf("Tokens:\n");
-  for (const auto &t : tokens) {
-    printToken(t);
-    printf(" ");
-  }
-  printf("\n");
+  return tokens;
 }

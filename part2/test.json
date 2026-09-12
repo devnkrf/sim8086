@@ -19,10 +19,10 @@
                 }
             }
         }
-    }
+    },
     "ValNumber": 12345,
     "ValDecimalNumber": 0.123,
-    "ValNegativeNumber": -0.3243
+    "ValNegativeNumber": -0.3243,
     "ValBool2": false,
     "ValBoolean": true,
     "ValNull": null
