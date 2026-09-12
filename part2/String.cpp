@@ -1,10 +1,7 @@
 #include <cstdlib>
 #include <cstring>
 
-struct String {
-  char *value;
-  long size;
-};
+#include "String.h"
 
 // remember to clear it
 String makeString(const char *str, long size) {
