@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "String.cpp"
+#include "String.h"
 #include "json_lexer.cpp"
 
 constexpr auto filePath = "test.json";
@@ -19,18 +19,21 @@ int readJsonFile(String *fileBuffer) {
   rewind(fptr);
   if (size <= 0) {
     printf("Empty File: %s\n", filePath);
+    fclose(fptr);
     return 1;
   }
 
   fileBuffer->value = (char *)malloc(size);
   if (!fileBuffer->value) {
     printf("Unable to allocate fileBuffer of size %ld\n", size);
+    fclose(fptr);
     return 1;
   }
 
   size_t bytes_read = fread(fileBuffer->value, 1, size, fptr);
   if (bytes_read != (size_t)size) {
     printf("Bytes read [%ld] not equal to file size [%ld]\n", bytes_read, size);
+    fclose(fptr);
     return 1;
   }
   fileBuffer->size = size;
@@ -64,10 +67,10 @@ void printJsonNode(const JsonNode &root, int depth = 0) {
     printf("%s", root.token.boolean ? "true" : "false");
     break;
   case TOKEN_TYPE::STRING:
-    printString(root.token.str);
+    printf("\"%.*s\"", (int)root.token.str.size, root.token.str.value);
     break;
   case TOKEN_TYPE::NUMBER:
-    printf("%lf", root.token.num);
+    printf("%.16f", root.token.num);
     break;
   case TOKEN_TYPE::VAL_NULL:
     printf("null");
@@ -233,6 +236,31 @@ bool parse_object(const std::vector<TOKEN> &tokens, JsonNode &root, int &curr) {
   }
 }
 
+JsonNode parseJson(String json) {
+  std::vector<TOKEN> tokens = lexer_tokenize(&json);
+  int curr = 0;
+  JsonNode root;
+  parse_value(tokens, root, curr);
+  return root;
+}
+
+JsonNode getFromJsonObject(const JsonNode &root, String compStr) {
+  JsonNode result;
+  result.token.type = TOKEN_TYPE::UNKNOWN;
+  if (root.token.type != TOKEN_TYPE::OBJECT) {
+    fprintf(stderr, "Expected Json Object, got: ");
+    printToken(root.token);
+    return result;
+  }
+  for (const auto &child : root.children) {
+    if (isStringEq(child.token.str, compStr)) {
+      return child;
+    }
+  }
+  return result;
+}
+
+/*
 int main() {
   String fileBuffer = {};
   int fr_res = readJsonFile(&fileBuffer);
@@ -256,3 +284,4 @@ int main() {
   }
   return fr_res;
 }
+*/

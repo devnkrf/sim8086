@@ -67,6 +67,12 @@ void printToken(const TOKEN &token) {
   case TOKEN_TYPE::NUMBER:
     printf("NUMBER(%lf)", token.num);
     break;
+  case TOKEN_TYPE::ARRAY:
+    printf("ARRAY");
+    break;
+  case TOKEN_TYPE::OBJECT:
+    printf("OBJECT");
+    break;
   default:
     printf("UNKNOWN(%d,%d)", token.row, token.col);
   }
@@ -83,9 +89,11 @@ bool lexer_tokenize_bool(String *fileBuffer, String ref, int i) {
 }
 
 std::vector<TOKEN> lexer_tokenize(String *fileBuffer) {
+  /*
   printf("Original Json:\n");
   printString(*fileBuffer);
   printf("\n");
+  */
 
   std::vector<TOKEN> tokens;
   TOKEN token = {.type = TOKEN_TYPE::UNKNOWN, .col = 0, .row = 0};
@@ -134,8 +142,8 @@ std::vector<TOKEN> lexer_tokenize(String *fileBuffer) {
         i++;
       } while (i < fileBuffer->size && fileBuffer->value[i] != '"');
       token.type = TOKEN_TYPE::STRING;
-      token.str.value = fileBuffer->value + start;
-      token.str.size = i - start + 1;
+      token.str.value = fileBuffer->value + start + 1;
+      token.str.size = i - start - 1;
       tokens.push_back(token);
     } else if (fileBuffer->value[i] == 't') {
       if (!lexer_tokenize_bool(fileBuffer, trueStr, i)) {

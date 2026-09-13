@@ -4,6 +4,8 @@
 
 #include "String.h"
 
+#define CONSTANT_STRING(str) {(char *)(str), sizeof(str) - 1}
+
 // remember to clear it
 String makeString(const char *str, long size) {
   String myStr;

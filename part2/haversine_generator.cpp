@@ -1,6 +1,10 @@
 #include <cstdio>
 
+#include "String.cpp"
 #include "haversine_reference_calculator.cpp"
+#include "json_parser.cpp"
+
+constexpr auto file_name = "output.json";
 
 // Range -90 to 90
 double GetRandomLatitude() {
@@ -20,7 +24,7 @@ double create_haversine_json(unsigned int seed, int n) {
   double result = 0;
 
   FILE *fptr;
-  fptr = fopen("output.json", "w");
+  fptr = fopen(file_name, "w");
 
   srand(seed);
 
@@ -56,6 +60,7 @@ int main(int argc, char **argv) {
   printf("Random Seed: %d\n", seed);
   printf("Pair Count: %u\n", n);
   printf("Expected Sum: %f\n", create_haversine_json(seed, n));
+  printf("Writing to: %s\n", file_name);
 
   return 0;
 }
