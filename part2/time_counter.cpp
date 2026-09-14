@@ -1,9 +1,10 @@
-#include <cstdint>
+#include <cstdio>
 #include <sys/time.h>
+#include <vector>
 #include <x86intrin.h>
 
-typedef uint64_t u64;
-typedef double f64;
+#include "String.h"
+#include "time_counter.h"
 
 u64 GetOSTimerFreq() { return 1e6; }
 
@@ -43,3 +44,51 @@ int main(void) {
   return 0;
 }
 */
+/*
+ * constructor() -> take the name + take the start time
+ * destructor()  -> take the end time + store somewhere??
+ */
+
+#define TakeTimeMetric(str) TimeTaker T(str);
+
+struct TimerVals {
+  u64 startTime, stopTime;
+  String name;
+};
+std::vector<TimerVals> timeMetrics;
+TimerVals totalTime{0, 0, CONSTANT_STRING("Total Time")};
+
+TimeTaker::TimeTaker(const char *name) {
+  startTime = ReadCPUTimer();
+  this->name = makeFromString(name);
+}
+TimeTaker::~TimeTaker() {
+  u64 stopTime = ReadCPUTimer();
+  timeMetrics.push_back({startTime, stopTime, name});
+}
+
+void setupTimeTaker() {
+  for (auto &t : timeMetrics) {
+    freeString(t.name);
+  }
+  timeMetrics.clear();
+  totalTime.startTime = ReadCPUTimer();
+}
+
+void printTimerMetric(TimerVals t, u64 cpuFreq, u64 total) {
+  u64 timeTaken = t.stopTime - t.startTime;
+  fprintf(stdout, "%.*s: %lfs (%.2f%%)\n", (int)t.name.size, t.name.value,
+          (double)timeTaken / cpuFreq, ((double)timeTaken / total) * 100);
+}
+
+void endTimeTaker() {
+  u64 cpuFreq = EstimateCPUTimerFreq();
+
+  totalTime.stopTime = ReadCPUTimer();
+  u64 total = totalTime.stopTime - totalTime.startTime;
+  printTimerMetric(totalTime, cpuFreq, total);
+
+  for (const auto &t : timeMetrics) {
+    printTimerMetric(t, cpuFreq, total);
+  }
+}

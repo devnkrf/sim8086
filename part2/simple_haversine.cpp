@@ -5,12 +5,14 @@
 #include "haversine_reference_calculator.cpp"
 #include "json_parser.cpp"
 #include "time_counter.cpp"
+#include "time_counter.h"
 
 struct HaversinePair {
   double x0, y0, x1, y1;
 };
 
 String readJsonFile(const char *file_name) {
+  TimeFunction;
   String buffer;
   FILE *fptr;
   fptr = fopen(file_name, "rb");
@@ -34,7 +36,10 @@ String readJsonFile(const char *file_name) {
   return buffer;
 }
 
-std::vector<HaversinePair> parseHaversinePair(JsonNode json) {
+std::vector<HaversinePair> parseHaversinePair(String fileBuffer) {
+  TimeFunction;
+  JsonNode json = parseJson(fileBuffer);
+  // printJsonNode(json);
   std::vector<HaversinePair> result;
   JsonNode pairs = getFromJsonObject(json, CONSTANT_STRING("pairs"));
   JsonNode pairsArr = pairs.children[0];
@@ -53,6 +58,7 @@ std::vector<HaversinePair> parseHaversinePair(JsonNode json) {
 }
 
 double calculateHaversine(const std::vector<HaversinePair> &pairs) {
+  TimeFunction;
   double result = 0;
   int n = pairs.size();
   if (n == 0) {
@@ -71,59 +77,11 @@ int main(int argc, char **argv) {
             argv[0]);
     return 1;
   }
-  u64 time_start = ReadCPUTimer();
-
+  setupTimeTaker();
   String fileBuffer = readJsonFile(argv[1]);
-  u64 time_file_read = ReadCPUTimer();
-
-  JsonNode json = parseJson(fileBuffer);
-  u64 time_json_parse = ReadCPUTimer();
-
-  // printJsonNode(json);
-  // u64 time_printJson = ReadCPUTimer();
-
-  auto jsonPairs = parseHaversinePair(json);
-  u64 time_pair_parse = ReadCPUTimer();
-
+  auto jsonPairs = parseHaversinePair(fileBuffer);
   double haversine = calculateHaversine(jsonPairs);
-  u64 time_haversine = ReadCPUTimer();
-
-  u64 cpuFreq = EstimateCPUTimerFreq();
   fprintf(stdout, "Calculated Haversine: %f\n", haversine);
-
-  u64 totalTime = time_haversine - time_start;
-  auto timeInSeconds = [cpuFreq](u64 time) -> double {
-    return (double)time / cpuFreq;
-  };
-  auto timeInPercentage = [totalTime](u64 time) -> double {
-    return ((double)time / totalTime) * 100;
-  };
-  auto printTimeMetrics = [&](u64 time) -> void {
-    fprintf(stdout, "%lf (%.2f%)\n", timeInSeconds(time),
-            timeInPercentage(time));
-  };
-  fprintf(stdout, "Total time taken: ");
-  printTimeMetrics(totalTime);
-
-  u64 readTime = time_file_read - time_start;
-  fprintf(stdout, "Read File: ");
-  printTimeMetrics(readTime);
-
-  u64 jsonParseTime = time_json_parse - time_file_read;
-  fprintf(stdout, "Json Parse: ");
-  printTimeMetrics(jsonParseTime);
-
-  u64 haversineParseTime = time_pair_parse - time_json_parse;
-  fprintf(stdout, "Haversine Parse: ");
-  printTimeMetrics(haversineParseTime);
-
-  u64 totalParseTime = time_pair_parse - time_file_read;
-  fprintf(stdout, "Total Parse: ");
-  printTimeMetrics(totalParseTime);
-
-  u64 haversineTime = time_haversine - time_pair_parse;
-  fprintf(stdout, "Haversine Calculation: ");
-  printTimeMetrics(haversineTime);
-
+  endTimeTaker();
   return 0;
 }

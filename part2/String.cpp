@@ -4,9 +4,6 @@
 
 #include "String.h"
 
-#define CONSTANT_STRING(str) {(char *)(str), sizeof(str) - 1}
-
-// remember to clear it
 String makeString(const char *str, long size) {
   String myStr;
   myStr.value = (char *)malloc(size);
@@ -14,6 +11,8 @@ String makeString(const char *str, long size) {
   myStr.size = size;
   return myStr;
 }
+
+String makeFromString(const char *str) { return makeString(str, strlen(str)); }
 
 bool isStringEq(String A, String B) {
   if (A.size != B.size) {
@@ -28,3 +27,11 @@ bool isStringEq(String A, String B) {
 }
 
 void printString(String A) { printf("%.*s", (int)A.size, A.value); }
+
+void freeString(String &str) {
+  if (str.value) {
+    free(str.value);
+  }
+  str.value = NULL;
+  str.size = 0;
+}

@@ -2,7 +2,6 @@
 
 #include "String.cpp"
 #include "haversine_reference_calculator.cpp"
-#include "json_parser.cpp"
 
 constexpr auto file_name = "output.json";
 
