@@ -77,11 +77,11 @@ int main(int argc, char **argv) {
             argv[0]);
     return 1;
   }
-  setupTimeTaker();
+  startProfiler();
   String fileBuffer = readJsonFile(argv[1]);
   auto jsonPairs = parseHaversinePair(fileBuffer);
   double haversine = calculateHaversine(jsonPairs);
   fprintf(stdout, "Calculated Haversine: %f\n", haversine);
-  endTimeTaker();
+  endProfiler();
   return 0;
 }

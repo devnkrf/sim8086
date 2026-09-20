@@ -4,16 +4,17 @@
 #include "String.h"
 #include "myTypes.h"
 
-#define TakeTimeMetric(str) TimeTaker T(str);
-#define TimeFunction TakeTimeMetric(__func__)
+#define TakeTimeMetric(str, idx) TimeTaker T(str, idx);
+#define TimeFunction TakeTimeMetric(__func__, __COUNTER__)
 
 class TimeTaker {
 private:
   u64 startTime;
-  String name;
+  const char *name;
+  u32 idx;
 
 public:
-  TimeTaker(const char *name);
+  TimeTaker(const char *name, u32 idx);
   ~TimeTaker();
 };
 

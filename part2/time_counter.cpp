@@ -1,10 +1,10 @@
 #include <cstdio>
 #include <sys/time.h>
-#include <vector>
 #include <x86intrin.h>
 
-#include "String.h"
 #include "time_counter.h"
+
+#define MAX_PROFILE_TIMER 4096
 
 u64 GetOSTimerFreq() { return 1e6; }
 
@@ -36,59 +36,55 @@ u64 EstimateCPUTimerFreq() {
   return CPUFreq;
 }
 
-/*
-int main(void) {
-  auto CPUFreq = EstimateCPUTimerFreq();
-  printf("CPU Seconds: %lu\n", CPUFreq);
-
-  return 0;
-}
-*/
-/*
- * constructor() -> take the name + take the start time
- * destructor()  -> take the end time + store somewhere??
- */
-
-#define TakeTimeMetric(str) TimeTaker T(str);
-
 struct TimerVals {
-  u64 startTime, stopTime;
-  String name;
+  u64 elapsedTime;
+  u64 hitCount;
+  const char *name;
 };
-std::vector<TimerVals> timeMetrics;
-TimerVals totalTime{0, 0, CONSTANT_STRING("Total Time")};
 
-TimeTaker::TimeTaker(const char *name) {
-  startTime = ReadCPUTimer();
-  this->name = makeFromString(name);
+struct Profiler {
+  TimerVals timers[MAX_PROFILE_TIMER];
+  u64 startTime;
+  u64 endTime;
+  u64 cpuFreq;
+};
+
+static Profiler GlobalProfiler;
+
+TimeTaker::TimeTaker(const char *tname, u32 index) {
+  if (index < MAX_PROFILE_TIMER) {
+    startTime = ReadCPUTimer();
+    name = tname;
+    idx = index;
+  } else {
+    fprintf(stderr, "TimeTaker::index higher than MAX_PROFILE_TIMER");
+  }
 }
 TimeTaker::~TimeTaker() {
-  u64 stopTime = ReadCPUTimer();
-  timeMetrics.push_back({startTime, stopTime, name});
+  TimerVals *timer = GlobalProfiler.timers + idx;
+  timer->name = name;
+  timer->elapsedTime += ReadCPUTimer() - startTime;
+  timer->hitCount++;
 }
 
-void setupTimeTaker() {
-  for (auto &t : timeMetrics) {
-    freeString(t.name);
-  }
-  timeMetrics.clear();
-  totalTime.startTime = ReadCPUTimer();
+void printTimerMetric(TimerVals *timer, u64 totalTime) {
+  fprintf(stdout, "%s: %lfs (%.2f%%)\n", timer->name,
+          (double)timer->elapsedTime / GlobalProfiler.cpuFreq,
+          ((double)timer->elapsedTime / totalTime) * 100);
 }
 
-void printTimerMetric(TimerVals t, u64 cpuFreq, u64 total) {
-  u64 timeTaken = t.stopTime - t.startTime;
-  fprintf(stdout, "%.*s: %lfs (%.2f%%)\n", (int)t.name.size, t.name.value,
-          (double)timeTaken / cpuFreq, ((double)timeTaken / total) * 100);
-}
+void startProfiler() { GlobalProfiler.startTime = ReadCPUTimer(); }
 
-void endTimeTaker() {
-  u64 cpuFreq = EstimateCPUTimerFreq();
-
-  totalTime.stopTime = ReadCPUTimer();
-  u64 total = totalTime.stopTime - totalTime.startTime;
-  printTimerMetric(totalTime, cpuFreq, total);
-
-  for (const auto &t : timeMetrics) {
-    printTimerMetric(t, cpuFreq, total);
+void endProfiler() {
+  GlobalProfiler.endTime = ReadCPUTimer();
+  GlobalProfiler.cpuFreq = EstimateCPUTimerFreq();
+  u64 totalTime = GlobalProfiler.endTime - GlobalProfiler.startTime;
+  for (int i = 0; i < MAX_PROFILE_TIMER; i++) {
+    TimerVals *timer = GlobalProfiler.timers + i;
+    if (timer->elapsedTime) {
+      printTimerMetric(timer, totalTime);
+    } else {
+      break;
+    }
   }
 }
